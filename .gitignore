@@ -1,5 +1,6 @@
 node_modules/
 .omo/
+.DS_Store
 *.log
 .env*
 !.env.example

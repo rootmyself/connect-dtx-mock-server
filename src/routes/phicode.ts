@@ -19,6 +19,7 @@ import {
   userHashMatches,
 } from "../phicodes.ts";
 import { findToken, getScenario } from "../tokens.ts";
+import { NAV_CSS, navHtml } from "../ui.ts";
 
 interface RouteOptions {
   config: Config;
@@ -49,6 +50,7 @@ const PHICODE_PAGE = `<!doctype html>
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system, "Pretendard", "Noto Sans KR", sans-serif; }
 header { background: var(--navy); color: #fff; padding: 14px 22px; font-size: 15px; }
+${NAV_CSS}
 main { max-width: 560px; margin: 32px auto; padding: 0 20px 48px; }
 h1 { font-size: 22px; margin: 0 0 6px; }
 label { display: block; font-size: 14px; margin: 14px 0 6px; }
@@ -68,7 +70,7 @@ code.curl { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 1
 </style>
 </head>
 <body>
-<header>connect-dtx mock — 로컬 개발용</header>
+<header>connect-dtx mock — 로컬 개발용${navHtml("/phicode")}</header>
 <main>
 <h1>phi_code 발급</h1>
 <p class="sub">이름과 휴대폰 번호를 입력하면 테스트용 phi_code가 나온다. 저장되는 것은 해시뿐이다.</p>
@@ -148,12 +150,98 @@ document.getElementById("copy").addEventListener("click", async () => {
 </body>
 </html>`;
 
+// 발급 목록 화면. 이름/번호는 해시만 저장되어 보여주지 않는다 (phi_code·org·시각만).
+const PHICODES_PAGE = `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>발급 목록 — connect-dtx mock</title>
+<style>
+:root { color-scheme: light; --navy: #0f2851; --ink: #14213a; --muted: #5b6b85; --line: #dce2ec; --paper: #f7f8fa; --danger: #c2402a; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system, "Pretendard", "Noto Sans KR", sans-serif; }
+header { background: var(--navy); color: #fff; padding: 14px 22px; font-size: 15px; }
+${NAV_CSS}
+main { max-width: 960px; margin: 32px auto; padding: 0 20px 48px; }
+h1 { font-size: 22px; margin: 0 0 6px; }
+p.sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; margin-top: 12px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; word-break: break-all; }
+p.error { color: var(--danger); font-size: 14px; min-height: 20px; }
+button.refresh { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>connect-dtx mock — 로컬 개발용${navHtml("/phicodes")}</header>
+<main>
+<h1>발급 목록</h1>
+<p class="sub">최신 발급순 100건. 이름/번호는 저장하지 않아 표시되지 않는다.</p>
+<button class="refresh" id="refresh" type="button">새로고침</button>
+<p class="error" id="err" role="alert"></p>
+<table>
+<thead><tr><th>phi_code</th><th>org_oid</th><th>발급시각</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</main>
+<script>
+const rows = document.getElementById("rows");
+const err = document.getElementById("err");
+function fmtTime(ms) { try { return new Date(ms).toLocaleString(); } catch { return String(ms); } }
+async function load() {
+  err.textContent = "";
+  rows.replaceChildren();
+  let res;
+  try {
+    res = await fetch("/admin/phicodes");
+  } catch {
+    err.textContent = "목록 조회 실패. 서버(:8091)가 켜져 있는지 확인한다.";
+    return;
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    err.textContent = body.message || "목록 조회 실패.";
+    return;
+  }
+  for (const item of body.phicodes || []) {
+    const tr = document.createElement("tr");
+    const phiTd = document.createElement("td");
+    phiTd.className = "mono";
+    phiTd.textContent = item.phiCode || "-";
+    const orgTd = document.createElement("td");
+    orgTd.className = "mono";
+    orgTd.textContent = item.orgOid || "-";
+    const timeTd = document.createElement("td");
+    timeTd.textContent = fmtTime(item.createdAt);
+    tr.append(phiTd, orgTd, timeTd);
+    rows.appendChild(tr);
+  }
+  if (rows.childElementCount === 0) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 3;
+    td.textContent = "발급 내역 없음. /phicode에서 먼저 발급한다.";
+    tr.appendChild(td);
+    rows.appendChild(tr);
+  }
+}
+document.getElementById("refresh").addEventListener("click", load);
+load();
+</script>
+</body>
+</html>`;
 export default async function routes(app: FastifyInstance, opts: RouteOptions): Promise<void> {
   void opts;
 
   // 발급 화면 (인증 없음 — /admin과 같은 로컬 전용 취급)
   app.get("/phicode", async (_request, reply) => {
     return reply.code(200).type("text/html; charset=utf-8").send(PHICODE_PAGE);
+  });
+
+  // 발급 목록 화면 (인증 없음 — /admin과 같은 로컬 전용 취급)
+  app.get("/phicodes", async (_request, reply) => {
+    return reply.code(200).type("text/html; charset=utf-8").send(PHICODES_PAGE);
   });
 
   // 이름 + 휴대폰 + 병원 4종(필수) → phi_code + org_oid 발급. PII는 해시만 저장, 로그에 남기지 않는다.

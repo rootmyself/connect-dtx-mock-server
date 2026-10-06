@@ -8,8 +8,8 @@
   "type": [ {
     "coding": [ {
       "system": "https://connectdtx.kr/fhir/CodeSystem/org-type",
-      "code": "prov",
-      "display": "의료기관"
+      "code": "01",
+      "display": "상급종합병원"
     } ]
   } ],
   "name": "테스트병원",

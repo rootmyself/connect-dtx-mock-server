@@ -90,3 +90,27 @@ export function userHashMatches(row: PhiCode, userCode: unknown): boolean {
   const expected = Buffer.from(row.userHash, "utf8");
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
+
+export interface PhiCodeListItem {
+  phiCode: string;
+  orgOid: string | null;
+  createdAt: number;
+}
+
+interface PhiCodeListRow {
+  phi_code: string;
+  org_oid: string | null;
+  created_at: number;
+}
+
+// 최신 발급순. user_hash·PII는 절대 노출하지 않는다.
+export function listPhicodes(limit = 100): PhiCodeListItem[] {
+  const rows = getDb()
+    .prepare("SELECT phi_code, org_oid, created_at FROM phicodes ORDER BY rowid DESC LIMIT ?")
+    .all(limit) as unknown as PhiCodeListRow[];
+  return rows.map((row) => ({
+    phiCode: row.phi_code,
+    orgOid: row.org_oid,
+    createdAt: row.created_at,
+  }));
+}

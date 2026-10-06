@@ -26,7 +26,7 @@ curl -s -X POST http://localhost:8091/admin/phicodes/issue \
 # gov: 위 바디에 "isGov":true 추가 → "zone":"test-api.gov.janusync.com"
 # 처방 폼 URL: http://localhost:18080?phi_code=<코드>&zone=<zone> (발급 UI 버튼이 자동 조립)
 # 병원 목록: GET /admin/organizations
-```
+# 목록 화면: /phicode(발급)·/phicodes(발급 목록)·/organizations(병원 목록)·/dtxresult(수신 확인)
 
 ```bash
 # phicode 3종 (PhiCodeService 순서)

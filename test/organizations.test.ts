@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.ts";
 import { seedDefaultClientsIfEmpty } from "../src/clients.ts";
+import { HOSPITAL_PRESETS, ORG_TYPE_SYSTEM } from "../src/hospitals.ts";
 import { closeTestDb, initTestDb } from "./helpers/testDb.ts";
 
 const HOSPITAL = {
@@ -122,6 +123,7 @@ describe("hospital organizations", () => {
           resource: {
             resourceType: string;
             identifier?: { system: string; value: string }[];
+            type?: { coding: { system: string; code: string; display: string }[] }[];
             name?: string;
             telecom?: { value: string }[];
             address?: { text: string; postalCode: string }[];
@@ -133,6 +135,8 @@ describe("hospital organizations", () => {
       assert.equal(org?.resource.name, HOSPITAL.hospitalName);
       assert.equal(org?.resource.telecom?.[0]?.value, "0212345678");
       assert.equal(org?.resource.address?.[0]?.postalCode, HOSPITAL.hospitalPostal);
+      assert.equal(org?.resource.type?.[0]?.coding?.[0]?.code, "01");
+      assert.equal(org?.resource.type?.[0]?.coding?.[0]?.display, "상급종합병원");
     } finally {
       await app.close();
       closeTestDb();
@@ -160,6 +164,44 @@ describe("hospital organizations", () => {
       };
       const org = body.entry.find((e) => e.resource.resourceType === "Organization");
       assert.equal(org?.resource.name, "테스트병원");
+    } finally {
+      await app.close();
+      closeTestDb();
+    }
+  });
+
+  it("preset 병원은 종별 코드로 반환 (일산병원=11)", async () => {
+    initTestDb(seed);
+    const app = buildApp({ dbPath: ":memory:" });
+    try {
+      const preset = HOSPITAL_PRESETS.find((h) => h.name === "일산병원");
+      assert.ok(preset !== undefined);
+      const issued = await issuePhiCode(app, {
+        hospitalName: preset.name,
+        hospitalAddress: preset.address,
+        hospitalPostal: preset.postal,
+        hospitalPhone: preset.phone,
+      });
+      const token = await issueToken(app);
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/dtx/dtxprcp?phicode=${issued.phi_code}&`,
+        headers: { authorization: `Bearer ${token}`, accept: "application/fhir+json" },
+      });
+      assert.equal(res.statusCode, 200);
+      const body = res.json() as {
+        entry: {
+          resource: {
+            resourceType: string;
+            type?: { coding: { system: string; code: string; display: string }[] }[];
+          };
+        }[];
+      };
+      const org = body.entry.find((e) => e.resource.resourceType === "Organization");
+      const coding = org?.resource.type?.[0]?.coding?.[0];
+      assert.equal(coding?.system, ORG_TYPE_SYSTEM);
+      assert.equal(coding?.code, "11");
+      assert.equal(coding?.display, "종합병원");
     } finally {
       await app.close();
       closeTestDb();

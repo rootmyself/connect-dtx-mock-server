@@ -63,12 +63,16 @@ shell에 직접 export한 값이 .env보다 우선한다. `CLIENT_ID`/`CLIENT_SE
 | `GET` | `/health` | `{"status":"UP"}` |
 | `POST` | `/oauth2/token` | `{"access_token":"..."}` |
 | `GET` | `/oauth2/token?grant_type=validate` | `{"result_code":"0"}` / 만료 `"7"` |
+| `GET` | `/` | `302 /phicode` — 루트 접속은 발급 화면으로 이동 |
 | `GET` | `/phicode` | phi_code 발급 웹페이지 (이름+휴대폰+병원 4종+정부연관 체크) |
+| `GET` | `/phicodes` | 발급 목록 (phi_code·org·시각, 최신 100건) |
+| `GET` | `/organizations` | 병원 목록 (oid·이름·종별·zone·4종) |
 | `GET` | `/dtxresult` | dtxresult 수신 확인 (일일/주간 탭) |
 | `GET` | `/admin/dtx-results?kind=daily\|weekly` | 수신 내역 목록 (요약만) |
 | `GET` | `/admin/dtx-results/:id` | 수신 단건 + 치환된 원문 |
 | `POST` | `/admin/phicodes/issue` | `{"phi_code","org_oid","zone"}` — `isGov:true`면 gov OID·gov zone |
-| `GET` | `/admin/organizations` | 발급된 병원 목록 (oid·zone 순차 발번) |
+| `GET` | `/admin/phicodes` | 발급 목록 API (PII 제외) |
+| `GET` | `/admin/organizations` | 발급된 병원 목록 (oid·zone 순차 발번 + 종별 typeCode) |
 
 실패 주입은 `/admin/scenarios`로 한다. 상세는 [docs/quickstart.md](docs/quickstart.md).
 

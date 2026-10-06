@@ -13,9 +13,11 @@ import {
   summarizeDtxResult,
 } from "../dtxresults.ts";
 import { isRecord } from "../guards.ts";
+import { ORG_TYPE_CODES, ORG_TYPE_SYSTEM, orgTypeCodeForName } from "../hospitals.ts";
 import { findOrganization } from "../organizations.ts";
 import { findPhiCode } from "../phicodes.ts";
 import { findToken, getScenario, setScenario } from "../tokens.ts";
+import { NAV_CSS, navHtml } from "../ui.ts";
 
 interface RouteOptions {
   config: Config;
@@ -67,7 +69,13 @@ function buildPrescriptionBundle(phicode: string, org?: OrgOverride): Record<str
     const text = raw.replaceAll(PHICODE_PLACEHOLDER, phicode);
     if (org !== undefined && name === "read-organization.json") {
       const resource = JSON.parse(text) as Record<string, unknown>;
+      const typeCode = orgTypeCodeForName(org.name);
       resource["identifier"] = [{ system: "urn:ietf:rfc:3986", value: org.oid }];
+      resource["type"] = [
+        {
+          coding: [{ system: ORG_TYPE_SYSTEM, code: typeCode, display: ORG_TYPE_CODES[typeCode] }],
+        },
+      ];
       resource["name"] = org.name;
       resource["telecom"] = [{ system: "phone", value: org.phoneDigits, rank: 0 }];
       resource["address"] = [{ text: org.address, postalCode: org.postal }];
@@ -95,6 +103,7 @@ const DTXRESULT_PAGE = `<!doctype html>
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system, "Pretendard", "Noto Sans KR", sans-serif; }
 header { background: var(--navy); color: #fff; padding: 14px 22px; font-size: 15px; }
+${NAV_CSS}
 main { max-width: 960px; margin: 32px auto; padding: 0 20px 48px; }
 h1 { font-size: 22px; margin: 0 0 6px; }
 p.sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
@@ -113,7 +122,7 @@ button.small { font: inherit; font-size: 13px; padding: 6px 10px; border-radius:
 </style>
 </head>
 <body>
-<header>connect-dtx mock — 로컬 개발용</header>
+<header>connect-dtx mock — 로컬 개발용${navHtml("/dtxresult")}</header>
 <main>
 <h1>dtxresult 수신 확인</h1>
 <p class="sub">POST /api/dtx/dtxresult 도착분을 일일/주간 탭으로 확인한다. PDF 원문은 크기만 표시된다.</p>

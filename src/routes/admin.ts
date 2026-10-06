@@ -9,8 +9,90 @@ import {
 } from "../clients.ts";
 import type { Config } from "../config.ts";
 import { isRecord } from "../guards.ts";
+import { orgTypeCodeForName } from "../hospitals.ts";
 import { listOrganizations } from "../organizations.ts";
+import { listPhicodes } from "../phicodes.ts";
 import { clearScenario, getScenario, listScenarios, setScenario } from "../tokens.ts";
+import { NAV_CSS, navHtml } from "../ui.ts";
+
+// 병원 목록 화면. 발급 시점의 4종+zone을 그대로 보여준다.
+const ORGANIZATIONS_PAGE = `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>병원 목록 — connect-dtx mock</title>
+<style>
+:root { color-scheme: light; --navy: #0f2851; --ink: #14213a; --muted: #5b6b85; --line: #dce2ec; --paper: #f7f8fa; --danger: #c2402a; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system, "Pretendard", "Noto Sans KR", sans-serif; }
+header { background: var(--navy); color: #fff; padding: 14px 22px; font-size: 15px; }
+${NAV_CSS}
+main { max-width: 960px; margin: 32px auto; padding: 0 20px 48px; }
+h1 { font-size: 22px; margin: 0 0 6px; }
+p.sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; margin-top: 12px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; word-break: break-all; }
+p.error { color: var(--danger); font-size: 14px; min-height: 20px; }
+button.refresh { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>connect-dtx mock — 로컬 개발용${navHtml("/organizations")}</header>
+<main>
+<h1>병원 목록</h1>
+<p class="sub">발급 시 등록된 순. OID는 발번 순서 그대로 표시된다. 종별은 프리셋 병원명 기준 자동 매핑(그 외 01).</p>
+<button class="refresh" id="refresh" type="button">새로고침</button>
+<p class="error" id="err" role="alert"></p>
+<table>
+<thead><tr><th>oid</th><th>병원명</th><th>종별</th><th>zone</th><th>주소</th><th>우편</th><th>전화</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</main>
+<script>
+const rows = document.getElementById("rows");
+const err = document.getElementById("err");
+async function load() {
+  err.textContent = "";
+  rows.replaceChildren();
+  let res;
+  try {
+    res = await fetch("/admin/organizations");
+  } catch {
+    err.textContent = "목록 조회 실패. 서버(:8091)가 켜져 있는지 확인한다.";
+    return;
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    err.textContent = body.message || "목록 조회 실패.";
+    return;
+  }
+  for (const item of body.organizations || []) {
+    const tr = document.createElement("tr");
+    const cells = [item.oid, item.name, item.typeCode, item.zone, item.address, item.postal, item.phoneDigits];
+    for (const [i, value] of cells.entries()) {
+      const td = document.createElement("td");
+      if (i <= 1) td.className = "mono";
+      td.textContent = value ?? "-";
+      tr.appendChild(td);
+    }
+    rows.appendChild(tr);
+  }
+  if (rows.childElementCount === 0) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 7;
+    td.textContent = "병원 없음. /phicode에서 먼저 발급한다.";
+    tr.appendChild(td);
+    rows.appendChild(tr);
+  }
+}
+document.getElementById("refresh").addEventListener("click", load);
+load();
+</script>
+</body>
+</html>`;
 
 interface RouteOptions {
   config: Config;
@@ -159,9 +241,21 @@ export default async function routes(app: FastifyInstance, opts: RouteOptions): 
     }
     return reply.code(204).send();
   });
+  // 병원 목록 화면 (인증 없음 — 발급 화면과 같은 로컬 전용 취급)
+  app.get("/organizations", async (_request, reply) => {
+    return reply.code(200).type("text/html; charset=utf-8").send(ORGANIZATIONS_PAGE);
+  });
+
+  app.get("/admin/phicodes", async (_request, reply) => {
+    return reply.code(200).send({ phicodes: listPhicodes() });
+  });
 
   app.get("/admin/organizations", async (_request, reply) => {
-    return reply.code(200).send({ organizations: listOrganizations() });
+    const organizations = listOrganizations().map((org) => ({
+      ...org,
+      typeCode: orgTypeCodeForName(org.name),
+    }));
+    return reply.code(200).send({ organizations });
   });
   // 실패 주입: PUT {"key":"dtxprcp","value":"503:1"} → 해당 경로가 503 반환.
   // value "expired" (validate 전용) 또는 "http:result_code" 형식.

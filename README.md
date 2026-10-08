@@ -85,6 +85,7 @@ shell에 직접 export한 값이 .env보다 우선한다. `CLIENT_ID`/`CLIENT_SE
 - [docs/architecture.md](docs/architecture.md) — 호출 흐름과 토큰/시나리오 모델.
 - [docs/operations.md](docs/operations.md) — 영속화·TTL·트러블슈팅.
 - [docs/wiring.md](docs/wiring.md) — dtx-fhir 배선.
+- [docs/plans/improvement-backlog.md](docs/plans/improvement-backlog.md) — 코드 리뷰 결과와 개선 백로그(P0 완료 / P1·P2 대기).
 
 ## 보안 경고
 

@@ -5,6 +5,7 @@ import { loadConfig } from "./config.ts";
 import { closeDb, initDb } from "./db.ts";
 import { seedDefaultOrganization } from "./organizations.ts";
 import { seedLegacyPhiCodes } from "./phicodes.ts";
+import { purgeExpiredTokens } from "./tokens.ts";
 
 // .env 자동 로드 (없으면 무시). shell/compose 환경변수가 우선한다.
 try {
@@ -29,6 +30,8 @@ try {
   console.error(err instanceof Error ? err.message : err);
   process.exit(1);
 }
+// 재기동 시 이전 실행의 만료 토큰을 정리한다 (발급 시점에도 함께 정리된다).
+purgeExpiredTokens();
 const defaultOrg = seedDefaultOrganization();
 seedLegacyPhiCodes(defaultOrg.oid);
 try {

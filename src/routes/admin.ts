@@ -12,7 +12,13 @@ import { isRecord } from "../guards.ts";
 import { orgTypeCodeForName } from "../hospitals.ts";
 import { listOrganizations } from "../organizations.ts";
 import { listPhicodes } from "../phicodes.ts";
-import { clearScenario, getScenario, listScenarios, setScenario } from "../tokens.ts";
+import {
+  clearScenario,
+  getScenario,
+  listScenarios,
+  revokeClientTokens,
+  setScenario,
+} from "../tokens.ts";
 import { NAV_CSS, navHtml } from "../ui.ts";
 
 // 병원 목록 화면. 발급 시점의 4종+zone을 그대로 보여준다.
@@ -225,6 +231,8 @@ export default async function routes(app: FastifyInstance, opts: RouteOptions): 
     if (!deleteClient(clientId)) {
       return reply.code(404).send({ error: "not_found", message: `client "${clientId}" missing` });
     }
+    // 삭제된 클라이언트의 Bearer가 TTL(24h) 동안 살아남지 않도록 즉시 무효화한다.
+    revokeClientTokens(clientId);
     return reply.code(204).send();
   });
   // 병원 목록 화면 (인증 없음 — 발급 화면과 같은 로컬 전용 취급)

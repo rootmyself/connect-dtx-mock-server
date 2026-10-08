@@ -24,6 +24,8 @@ export function initDb(path: string): void {
   db.exec(
     "CREATE TABLE IF NOT EXISTS tokens(access_token TEXT PRIMARY KEY, client_id TEXT NOT NULL, zone TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL)",
   );
+  db.exec("CREATE INDEX IF NOT EXISTS idx_tokens_expires ON tokens(expires_at)");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_tokens_client ON tokens(client_id)");
   db.exec("CREATE TABLE IF NOT EXISTS scenarios(key TEXT PRIMARY KEY, value TEXT NOT NULL)");
   db.exec(
     "CREATE TABLE IF NOT EXISTS organizations(oid TEXT PRIMARY KEY, seq INTEGER NOT NULL UNIQUE, zone TEXT NOT NULL DEFAULT 'normal', name TEXT NOT NULL, address TEXT NOT NULL, postal TEXT NOT NULL, phone_digits TEXT NOT NULL, fingerprint TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL)",

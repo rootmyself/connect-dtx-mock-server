@@ -24,6 +24,8 @@ export function issueToken(
   now?: number,
 ): Token {
   const ts = now ?? Date.now();
+  // 스케줄러가 없으므로 발급 시점에 만료분을 함께 정리한다 (tokens 무한 증가 방지).
+  purgeExpiredTokens(ts);
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" }), "utf8").toString(
     "base64url",
   );

@@ -20,6 +20,18 @@ async function issueToken(app: FastifyInstance): Promise<string> {
   return (res.json() as { access_token: string }).access_token;
 }
 
+interface BundleEntryShape {
+  resource: {
+    resourceType: string;
+    status?: string;
+    identifier?: { system: string; value: string }[];
+  };
+}
+
+interface BundleShape {
+  entry: BundleEntryShape[];
+}
+
 describe("connect-dtx FHIR", () => {
   beforeEach(() => {
     initTestDb(() =>
@@ -190,6 +202,40 @@ describe("connect-dtx FHIR", () => {
       const page = await app.inject({ method: "GET", url: "/dtxresult" });
       assert.equal(page.statusCode, 200);
       assert.match(page.headers["content-type"] ?? "", /text\/html/);
+    } finally {
+      await app.close();
+      closeTestDb();
+    }
+  });
+
+  it("phicode에 따옴표·JSON 조각이 와도 500 없이 fixture 형태를 지킨다", async () => {
+    const app = buildApp({ dbPath: ":memory:" });
+    try {
+      const token = await issueToken(app);
+      const headers = { authorization: `Bearer ${token}`, accept: "application/fhir+json" };
+      const prescription = async (phicode: string): Promise<BundleShape> => {
+        const res = await app.inject({
+          method: "GET",
+          url: `/api/dtx/dtxprcp?phicode=${encodeURIComponent(phicode)}`,
+          headers,
+        });
+        assert.equal(res.statusCode, 200);
+        return res.json() as BundleShape;
+      };
+      const resourceOf = (body: BundleShape, resourceType: string) =>
+        body.entry.find((entry) => entry.resource.resourceType === resourceType)?.resource;
+
+      // 파싱 전 문자열 치환이면 JSON이 깨져 500이 나던 입력.
+      const quoted = await prescription('"');
+      assert.equal(resourceOf(quoted, "Patient")?.identifier?.[0]?.value, '"');
+      assert.equal(resourceOf(quoted, "ServiceRequest")?.status, "active");
+
+      // 파싱 전 치환이면 임의 필드를 덮어쓸 수 있던 입력 — 값으로만 남아야 한다.
+      const injected = 'PHI-1","status":"entered-in-error';
+      const body = await prescription(injected);
+      assert.equal(resourceOf(body, "Patient")?.identifier?.[0]?.value, injected);
+      assert.equal(resourceOf(body, "ServiceRequest")?.identifier?.[0]?.value, injected);
+      assert.equal(resourceOf(body, "ServiceRequest")?.status, "active");
     } finally {
       await app.close();
       closeTestDb();

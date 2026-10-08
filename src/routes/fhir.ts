@@ -63,12 +63,27 @@ interface OrgOverride {
   phoneDigits: string;
 }
 
+// 자리표시자는 "문자열 값 전체 일치"일 때만 치환한다.
+// 파싱 전 replaceAll은 phicode에 따옴표가 섞이면 JSON을 깨뜨려 500을 내고,
+// `PHI-1","status":"x` 같은 값으로 임의 필드를 주입할 수 있다.
+function substitutePhicode(node: unknown, phicode: string): unknown {
+  if (typeof node === "string") return node === PHICODE_PLACEHOLDER ? phicode : node;
+  if (Array.isArray(node)) return node.map((item) => substitutePhicode(item, phicode));
+  if (isRecord(node)) {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node)) {
+      out[key] = substitutePhicode(value, phicode);
+    }
+    return out;
+  }
+  return node;
+}
+
 function buildPrescriptionBundle(phicode: string, org?: OrgOverride): Record<string, unknown> {
   const entry = PRESCRIPTION_RESOURCES.map((name) => {
-    const raw = fixtureCache[name] ?? "{}";
-    const text = raw.replaceAll(PHICODE_PLACEHOLDER, phicode);
+    const parsed: unknown = JSON.parse(fixtureCache[name] ?? "{}");
+    const resource = substitutePhicode(parsed, phicode) as Record<string, unknown>;
     if (org !== undefined && name === "read-organization.json") {
-      const resource = JSON.parse(text) as Record<string, unknown>;
       const typeCode = orgTypeCodeForName(org.name);
       resource["identifier"] = [{ system: "urn:ietf:rfc:3986", value: org.oid }];
       resource["type"] = [
@@ -81,7 +96,6 @@ function buildPrescriptionBundle(phicode: string, org?: OrgOverride): Record<str
       resource["address"] = [{ text: org.address, postalCode: org.postal }];
       return { resource };
     }
-    const resource: Record<string, unknown> = JSON.parse(text);
     return { resource };
   });
   return {

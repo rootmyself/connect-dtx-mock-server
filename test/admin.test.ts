@@ -36,6 +36,31 @@ describe("connect-dtx admin", () => {
     }
   });
 
+  it("잘못된 JSON 바디는 파싱 오류로 400 (원인을 다른 검증 실패로 위장하지 않는다)", async () => {
+    initTestDb(() =>
+      seedDefaultClientsIfEmpty(
+        "test-client-id",
+        "test-client-secret",
+        "test-gov-client-id",
+        "test-gov-client-secret",
+      ),
+    );
+    const app = buildApp({ dbPath: ":memory:" });
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: "/admin/clients",
+        headers: { "content-type": "application/json" },
+        payload: "{oops",
+      });
+      assert.equal(res.statusCode, 400);
+      assert.equal((res.json() as { code: string }).code, "FST_ERR_CTP_INVALID_JSON_BODY");
+    } finally {
+      await app.close();
+      closeTestDb();
+    }
+  });
+
   it("validate=expired forces token reissue path", async () => {
     initTestDb(() =>
       seedDefaultClientsIfEmpty(

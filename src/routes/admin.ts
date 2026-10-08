@@ -151,20 +151,6 @@ const SCENARIO_KEYS: Record<string, true> = {
 export default async function routes(app: FastifyInstance, opts: RouteOptions): Promise<void> {
   void opts;
 
-  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
-    void req;
-    const text = body as string;
-    if (text === "") {
-      done(null, undefined);
-      return;
-    }
-    try {
-      done(null, JSON.parse(text));
-    } catch {
-      done(null, { __parseFailed: true });
-    }
-  });
-
   app.get("/admin/clients", async (_request, reply) => {
     return reply.code(200).send({ clients: listClients().map(toMasked) });
   });

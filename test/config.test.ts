@@ -11,6 +11,12 @@ describe("connect-dtx config", () => {
     assert.equal(config.clientSecret, "test-client-secret");
   });
 
+  it("/admin에 인증이 없으므로 HOST 기본값은 루프백이다", () => {
+    assert.equal(loadConfig({}).host, "127.0.0.1");
+    assert.equal(loadConfig({ HOST: "0.0.0.0" }).host, "0.0.0.0");
+    assert.equal(loadConfig({ HOST: "" }).host, "127.0.0.1");
+  });
+
   it("honors PUBLIC_BASE_URL/CLIENT_ID/CLIENT_SECRET overrides", () => {
     const config = loadConfig({
       PUBLIC_BASE_URL: "http://localhost:8899",

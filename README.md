@@ -39,7 +39,8 @@ client-id/secret 4종은 mock 기본값이 dtx-fhir `application-test.yaml`과 �
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
-| `PORT` | `8091` | 컨테이너 리슨 포트 |
+| `PORT` | `8091` | 리슨 포트 |
+| `HOST` | `127.0.0.1` | 리슨 주소. `/admin`에 인증이 없어 기본은 루프백이다. 컨테이너는 `0.0.0.0`(Dockerfile·compose), 호스트 노출은 compose가 `127.0.0.1`로 제한 |
 | `PUBLIC_BASE_URL` | `http://localhost:${PORT}` | 시작 로그 기준 URL. 끝 `/` 자동 제거 |
 | `CLIENT_ID` / `CLIENT_SECRET` | `test-client-id` / `test-client-secret` | 일반 도메인 최초 시드 |
 | `GOV_CLIENT_ID` / `GOV_CLIENT_SECRET` | `test-gov-client-id` / `test-gov-client-secret` | 정부 도메인 최초 시드 |
@@ -53,6 +54,8 @@ client-id/secret 4종은 mock 기본값이 dtx-fhir `application-test.yaml`과 �
 cp .env.example .env
 docker compose up -d --build
 ```
+
+`.env.example`의 값은 코드 기본값(=`test-client-id` 계열)과 동일하므로 복사만 해도 dtx-fhir `application-test.yaml`과 맞는다.
 
 shell에 직접 export한 값이 .env보다 우선한다. `CLIENT_ID`/`CLIENT_SECRET` 변경은 첫 기동 1회만 시드되어 SQLite에 영속되므로, 변경 후에는 `docker compose down && rm -rf ./data && docker compose up -d --build`로 재시드한다.
 

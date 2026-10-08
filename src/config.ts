@@ -50,7 +50,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const port = parseNumberEnv("PORT", env["PORT"], 8091);
   return {
     port,
-    host: parseStringEnv(env["HOST"], "0.0.0.0"),
+    // 기본은 루프백. /admin에 인증이 없으므로(SECURITY.md) 기본 노출을 막는다.
+    // 컨테이너에서는 Dockerfile이 HOST=0.0.0.0을 명시하고 compose가 127.0.0.1로만 퍼블리시한다.
+    host: parseStringEnv(env["HOST"], "127.0.0.1"),
     publicBaseUrl: parsePublicBaseUrl(env["PUBLIC_BASE_URL"], port),
     // dtx-fhir application-test.yaml 값과 일치 — base-url만 localhost:8091로 바꾸면 연결됨
     clientId: parseStringEnv(env["CLIENT_ID"], "test-client-id"),

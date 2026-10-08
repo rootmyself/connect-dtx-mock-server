@@ -4,8 +4,11 @@ services:
     image: connect-dtx-mock-server:local
     container_name: connect-dtx-mock-server
     ports:
-      - "${PORT:-8091}:${PORT:-8091}"
+      # /admin에는 인증이 없다 — 호스트 루프백에만 퍼블리시한다.
+      - "127.0.0.1:${PORT:-8091}:${PORT:-8091}"
     environment:
+      # 컨테이너 안에서는 0.0.0.0으로 리슨하고, 호스트 노출은 위 ports가 루프백으로 제한한다.
+      - "HOST=0.0.0.0"
       - "PORT=${PORT:-8091}"
       - "PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}"
       - "CLIENT_ID=${CLIENT_ID:-test-client-id}"
